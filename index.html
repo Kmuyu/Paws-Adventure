@@ -56,10 +56,13 @@ Use Arrow Keys or WASD to move your dog to the treat. Avoid obstacles!
 </div>
 
 <script>
-// Treat phones and tablets (including iPadOS) as touch devices.
-const isMobileOrTablet =
-  /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// Robust touch-device detection for phones/tablets, including iPadOS desktop mode.
+const ua = navigator.userAgent || "";
+const hasCoarsePointer = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+const hasTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0 || hasCoarsePointer;
+const isAppleTabletDesktopMode = /Macintosh|MacIntel/i.test(ua) && navigator.maxTouchPoints > 1;
+const isMobileOrTabletUA = /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(ua);
+const isMobileOrTablet = hasTouch && (isMobileOrTabletUA || isAppleTabletDesktopMode);
 if(isMobileOrTablet){ document.getElementById("multiBtn").style.display="none"; }
 
 const canvas=document.getElementById("game");
