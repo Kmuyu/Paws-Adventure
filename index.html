@@ -4,9 +4,59 @@
 <meta charset="UTF-8">
 <title>Paws Adventure</title>
 <style>
-body{margin:0;font-family:Arial;text-align:center;background:linear-gradient(135deg,#89f7fe,#66a6ff);display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;}
-canvas{background:#e8ffe8;border:2px solid #333;margin-top:10px;}
-button{padding:10px 20px;margin:5px;cursor:pointer;}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  text-align:center;
+  background:linear-gradient(135deg,#89f7fe,#66a6ff);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  padding:12px;
+  box-sizing:border-box;
+}
+canvas{
+  background:#e8ffe8;
+  border:2px solid #333;
+  margin-top:10px;
+  width:min(92vw,900px);
+  height:auto;
+  aspect-ratio:3 / 2;
+  max-height:58vh;
+}
+button{
+  padding:10px 20px;
+  margin:5px;
+  cursor:pointer;
+  border:none;
+  border-radius:10px;
+  font-weight:600;
+}
+.panel{
+  width:min(92vw,760px);
+  background:rgba(255,255,255,0.22);
+  border:1px solid rgba(255,255,255,0.35);
+  border-radius:16px;
+  padding:16px;
+  backdrop-filter:blur(5px);
+}
+#animalGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(88px,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.animalBtn{
+  font-size:34px;
+  padding:12px;
+  background:rgba(255,255,255,0.9);
+}
+.animalBtn.selected{
+  outline:3px solid #1f5eff;
+  transform:translateY(-2px);
+}
 
 #instructions{opacity:0;transition:opacity 1s ease;}
 
@@ -19,13 +69,23 @@ button{padding:10px 20px;margin:5px;cursor:pointer;}
 </head>
 <body>
 
-<div id="menu">
+<div id="menu" class="panel">
 <h1>🐶 Paws Adventure 🍖</h1>
-<button onclick="startGame('solo')">Solo</button>
-<button id="multiBtn" onclick="startGame('multi')">Multiplayer</button>
+<button onclick="chooseMode('solo')">Solo</button>
+<button id="multiBtn" onclick="chooseMode('multi')">Multiplayer</button>
 </div>
 
-<div id="ui" style="display:none">
+<div id="animalSelect" class="panel" style="display:none">
+  <h2 id="animalTitle">Choose your paw buddy</h2>
+  <p id="animalSubtitle">Pick one animal to start.</p>
+  <div id="animalGrid"></div>
+  <div style="margin-top:12px;">
+    <button id="animalContinueBtn" onclick="confirmAnimalChoice()" disabled>Continue</button>
+    <button onclick="backToMenu()">Back</button>
+  </div>
+</div>
+
+<div id="ui" class="panel" style="display:none">
 <p id="level"></p>
 <p id="timer"></p>
 <button onclick="goHome()">Home</button>
@@ -77,9 +137,17 @@ let dog1,dog2,treat;
 let movingWalls=[],killTiles=[],freezeTiles=[];
 let freezeEnd=0;
 let reached1=false,reached2=false;
-
-const dogImg1=new Image(); dogImg1.src="https://cdn-icons-png.flaticon.com/512/616/616408.png";
-const dogImg2=new Image(); dogImg2.src="https://cdn-icons-png.flaticon.com/512/616/616430.png";
+let selectedAnimal1=null, selectedAnimal2=null, pendingPlayer=1, temporarySelectedAnimal=null;
+const animals=[
+  {id:"dog",emoji:"🐶",label:"Dog"},
+  {id:"cat",emoji:"🐱",label:"Cat"},
+  {id:"bear",emoji:"🐻",label:"Bear"},
+  {id:"fox",emoji:"🦊",label:"Fox"},
+  {id:"wolf",emoji:"🐺",label:"Wolf"},
+  {id:"tigerA",emoji:"🐯",label:"Tiger"},
+  {id:"tigerB",emoji:"🐯",label:"Tiger"},
+  {id:"panda",emoji:"🐼",label:"Panda"}
+];
 const treatImg=new Image(); treatImg.src="https://cdn-icons-png.flaticon.com/512/1046/1046784.png";
 const fenceImg=new Image(); fenceImg.src="https://cdn-icons-png.flaticon.com/512/427/427735.png";
 const skullImg=new Image(); skullImg.src="https://cdn-icons-png.flaticon.com/512/833/833472.png";
@@ -87,12 +155,81 @@ const skullImg=new Image(); skullImg.src="https://cdn-icons-png.flaticon.com/512
 function randomPos(){ return {x:Math.floor(Math.random()*cols),y:Math.floor(Math.random()*rows)}; }
 function validPosition(pos,list){ return !list.some(o=>o.x===pos.x&&o.y===pos.y); }
 
-function startGame(m){
-mode=m;level=1;gameOver=false;
-document.getElementById("menu").style.display="none";
+function chooseMode(m){
+  mode=m;
+  selectedAnimal1=null;
+  selectedAnimal2=null;
+  pendingPlayer=1;
+  temporarySelectedAnimal=null;
+  document.getElementById("menu").style.display="none";
+  document.getElementById("animalSelect").style.display="block";
+  renderAnimalSelection();
+}
+
+function backToMenu(){
+  document.getElementById("animalSelect").style.display="none";
+  document.getElementById("menu").style.display="block";
+}
+
+function renderAnimalSelection(){
+  const title=document.getElementById("animalTitle");
+  const subtitle=document.getElementById("animalSubtitle");
+  const grid=document.getElementById("animalGrid");
+  const continueBtn=document.getElementById("animalContinueBtn");
+
+  title.innerText=pendingPlayer===1 ? "Choose Player 1 animal" : "Choose Player 2 animal";
+  subtitle.innerText=mode==="solo"
+    ? "Pick one paw friend for your adventure."
+    : "Multiplayer: choose an animal for each player.";
+
+  continueBtn.disabled=!temporarySelectedAnimal;
+  grid.innerHTML="";
+  animals.forEach(animal=>{
+    const btn=document.createElement("button");
+    btn.className="animalBtn"+(temporarySelectedAnimal===animal.id?" selected":"");
+    btn.innerText=animal.emoji;
+    btn.title=animal.label;
+    btn.onclick=()=>selectAnimal(animal.id);
+    grid.appendChild(btn);
+  });
+}
+
+function selectAnimal(animalId){
+  temporarySelectedAnimal=animalId;
+  renderAnimalSelection();
+}
+
+function confirmAnimalChoice(){
+  if(!temporarySelectedAnimal) return;
+  if(pendingPlayer===1){
+    selectedAnimal1=temporarySelectedAnimal;
+    temporarySelectedAnimal=null;
+    if(mode==="solo"){
+      startGame();
+      return;
+    }
+    pendingPlayer=2;
+    renderAnimalSelection();
+    return;
+  }
+  selectedAnimal2=temporarySelectedAnimal;
+  startGame();
+}
+
+function getAnimalEmoji(animalId){
+  return animals.find(a=>a.id===animalId)?.emoji || "🐶";
+}
+
+function startGame(){
+level=1;gameOver=false;
+document.getElementById("animalSelect").style.display="none";
 document.getElementById("ui").style.display="block";
 canvas.style.display="block";
 if(isMobileOrTablet && mode==="solo"){ document.getElementById("mobileControls").style.display="block"; }
+document.getElementById("instructions").innerText=
+  mode==="multi"
+    ? `Player 1 ${getAnimalEmoji(selectedAnimal1)}: Arrows | Player 2 ${getAnimalEmoji(selectedAnimal2)}: WASD`
+    : `Use Arrow Keys, WASD, or touch controls to move ${getAnimalEmoji(selectedAnimal1)} to the treat.`;
 startCountdown();
 }
 
@@ -162,8 +299,11 @@ function drawGame(){
  movingWalls.forEach(w=>ctx.drawImage(fenceImg,w.x*gridSize,w.y*gridSize,gridSize,gridSize));
  freezeTiles.forEach(t=>{ctx.font="30px Arial";ctx.fillText("🥶",t.x*gridSize+5,t.y*gridSize+30);});
  killTiles.forEach(t=>ctx.drawImage(skullImg,t.x*gridSize,t.y*gridSize,gridSize,gridSize));
- ctx.drawImage(dogImg1,dog1.x*gridSize,dog1.y*gridSize,gridSize,gridSize);
- if(mode==="multi") ctx.drawImage(dogImg2,dog2.x*gridSize,dog2.y*gridSize,gridSize,gridSize);
+ ctx.font="34px Arial";
+ ctx.fillText(getAnimalEmoji(selectedAnimal1),dog1.x*gridSize+4,dog1.y*gridSize+31);
+ if(mode==="multi"){
+   ctx.fillText(getAnimalEmoji(selectedAnimal2),dog2.x*gridSize+4,dog2.y*gridSize+31);
+ }
 }
 
 function moveObstacles(){
@@ -191,7 +331,12 @@ function check(player){
       canvas.style.display="none";
       document.getElementById("ui").style.display="none";
       document.getElementById("endScreen").style.display="block";
-      document.getElementById("finalStats").innerText=`Time: ${formatTime(time)}`;
+      const p1=getAnimalEmoji(selectedAnimal1);
+      const p2=getAnimalEmoji(selectedAnimal2);
+      document.getElementById("finalStats").innerText=
+        mode==="multi"
+          ? `Time: ${formatTime(time)} | Team: ${p1} & ${p2}`
+          : `Time: ${formatTime(time)} | Hero: ${p1}`;
       return;
     }
     loadLevel();
