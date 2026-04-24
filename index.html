@@ -11,9 +11,10 @@ button{padding:10px 20px;margin:5px;cursor:pointer;}
 #instructions{opacity:0;transition:opacity 1s ease;}
 
 #mobileControls button{
-  font-size:20px;
-  padding:10px;
-  margin:3px;
+  font-size:24px;
+  padding:15px;
+  margin:5px;
+  border-radius:10px;
 }
 </style>
 </head>
@@ -47,16 +48,17 @@ Use Arrow Keys or WASD to move your dog to the treat. Avoid obstacles!
 </p>
 
 <div id="mobileControls" style="display:none;">
-  <div><button onclick="move('up')">⬆️</button></div>
   <div>
-    <button onclick="move('left')">⬅️</button>
-    <button onclick="move('down')">⬇️</button>
-    <button onclick="move('right')">➡️</button>
+    <button ontouchstart="startMove('up')" ontouchend="stopMove()">⬆️</button>
+  </div>
+  <div>
+    <button ontouchstart="startMove('left')" ontouchend="stopMove()">⬅️</button>
+    <button ontouchstart="startMove('down')" ontouchend="stopMove()">⬇️</button>
+    <button ontouchstart="startMove('right')" ontouchend="stopMove()">➡️</button>
   </div>
 </div>
-
 <script>
-const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+const isMobile = /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
 if(isMobile){ document.getElementById("multiBtn").style.display="none"; }
 
 const canvas=document.getElementById("game");
@@ -232,6 +234,21 @@ document.addEventListener("keydown",e=>{
  if(mode==="multi") check(2);
  drawGame();
 });
+  let moveInterval = null;
+
+function startMove(direction){
+  if(!started || gameOver) return;
+
+  stopMove(); // prevents stacking
+
+  moveInterval = setInterval(()=>{
+    move(direction);
+  }, 100); // lower = faster (try 80 if needed)
+}
+
+function stopMove(){
+  clearInterval(moveInterval);
+}
 </script>
 
 </body>
