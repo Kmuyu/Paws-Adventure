@@ -56,8 +56,11 @@ Use Arrow Keys or WASD to move your dog to the treat. Avoid obstacles!
 </div>
 
 <script>
-const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-if(isMobile){ document.getElementById("multiBtn").style.display="none"; }
+// Treat phones and tablets (including iPadOS) as touch devices.
+const isMobileOrTablet =
+  /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if(isMobileOrTablet){ document.getElementById("multiBtn").style.display="none"; }
 
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
@@ -86,7 +89,7 @@ mode=m;level=1;gameOver=false;
 document.getElementById("menu").style.display="none";
 document.getElementById("ui").style.display="block";
 canvas.style.display="block";
-if(isMobile){ document.getElementById("mobileControls").style.display="block"; }
+if(isMobileOrTablet && mode==="solo"){ document.getElementById("mobileControls").style.display="block"; }
 startCountdown();
 }
 
